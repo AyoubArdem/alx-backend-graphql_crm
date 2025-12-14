@@ -1,5 +1,7 @@
-
+from .filters.py import ProductFilter,CustomerFilter,OrderFilter
+import django_filters 
 import graphene
+from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django import DjangoObjectType
 from .models import Customer, Product, Order
 from django.db import transaction
@@ -18,14 +20,53 @@ class ProductType(DjangoObjectType):
 class OrderType(DjangoObjectType):
     class Meta:
         model = Order
+##################################################################
+class CustomerNode(DjangoObjectType):
+   
+    class Meta:
+        model = Customer
+        filterset_class = CustomerFilter
+
+class ProductNode(DjangoObjectType):
+   
+    class Meta:
+        model = Product
+        filterset_class = ProductFilter
+
+class OrderNode(DjangoObjectType):
+    
+    class Meta:
+        model = Order
+        filterset_class = OrderFilter
+
+class OrderByEnum(graphene.ENUM):
+    NAME_ASC = "name"
+    NAME_DESC = "-name"
+    PRICE_ASC = "price"
+    PRICE_DESC = "-price"
+    STOCK_ASC = "stock"
+    STOCK_DESC = "-stock"
+    DATE_ASC = "order_date"
+    DATE_DESC = "-order_date"
+
+class Query(graphene.ObjectType):
+    all_customers = DjangoFilterConnectionField(CustomerNode)
+    all_products = DjangoFilterConnectionField(ProductNode,order_by=OrderByEnum())
+    all_orders = DjangoFilterConnectionField(OrderNode)
 
 
+    def resolve_all_products(root, info,order_by=None):
+        if order_by:
+            return product.objects.all().order_by(order_by)
+        return Product.objects.all()
 
+   
+##########################################################################
 class CreateCustomerInput(graphene.InputObjectType):
     name = graphene.String(required=True)
     email = graphene.String(required=True)
     phone = graphene.String(required=False)
-
+    
 class CreateCustomer(graphene.Mutation):
     class Arguments:
         input = CreateCustomerInput(required=True)
@@ -138,6 +179,7 @@ class Query(graphene.ObjectType):
     all_customers = graphene.List(CustomerType)
     all_products = graphene.List(ProductType)
     all_orders = graphene.List(OrderType)
+    
 
     def resolve_all_customers(root, info):
         return Customer.objects.all()
